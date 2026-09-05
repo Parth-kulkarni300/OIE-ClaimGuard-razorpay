@@ -28,7 +28,8 @@ import {
   Mic,
   Download,
   Zap,
-  CreditCard
+  CreditCard,
+  Users
 } from 'lucide-react'
 
 type Role = 'login' | 'customer' | 'agent'
@@ -529,7 +530,7 @@ function Agent({ onBack }: { onBack: () => void }) {
         }
 
         const options = {
-          key: "YOUR_RAZORPAY_KEY_ID_HERE",
+          key: "rzp_test_TXDYq2F9sQqsxe",
           amount: amount * 100,
           currency: "INR",
           name: "Acko Insurance",
