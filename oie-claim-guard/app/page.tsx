@@ -278,107 +278,150 @@ function Customer({ onBack }: { onBack: () => void }) {
         <button className="nav-item mt-4 w-full" onClick={onBack}><LogOut size={16} /> Sign out</button>
       </aside>
       
-      <div className="min-w-0 flex-1">
         <div className="flex items-center justify-between border-b border-white/8 px-5 py-4 lg:px-8">
           <div><div className="flex items-center gap-3"><button className="icon-button lg:hidden" onClick={() => setSidebar(true)}><Menu size={17} /></button><div><h1 className="text-xl font-semibold tracking-tight text-white sm:text-2xl">Good morning, Ananya</h1></div></div></div>
         </div>
 
         <div className="p-5 lg:p-8">
           {tab === 'overview' ? (
-            <div className="space-y-6">
-              <h2 className="text-2xl font-semibold tracking-tight text-white">Welcome back</h2>
-              <div className="grid gap-4 sm:grid-cols-3">
-                 <GlassCard className="p-5">
-                   <h3 className="text-sm font-medium text-slate-400">Active Policy</h3>
-                   <p className="mt-2 text-xl font-semibold text-white">Comprehensive Auto</p>
-                   <p className="mt-1 text-xs text-emerald flex items-center gap-1"><ShieldCheck size={12}/> Valid till Dec 2027</p>
+            <div className="space-y-8 max-w-5xl mx-auto">
+              <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-white/5 to-white/[0.01] p-8 sm:p-12 shadow-2xl shadow-cyan/5">
+                <div className="absolute -top-32 -right-32 w-96 h-96 bg-cyan/20 blur-[100px] rounded-full pointer-events-none"></div>
+                <div className="absolute -bottom-32 -left-32 w-96 h-96 bg-emerald/10 blur-[100px] rounded-full pointer-events-none"></div>
+                <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+                  <div>
+                    <div className="inline-flex items-center gap-1.5 rounded-full border border-emerald/20 bg-emerald/10 px-3 py-1.5 text-xs font-medium text-emerald mb-6 shadow-sm shadow-emerald/10">
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald animate-pulse"></span>
+                      Policy Active & Protected
+                    </div>
+                    <h2 className="text-3xl sm:text-5xl font-semibold tracking-tight text-white leading-tight">Welcome back,<br/>Ananya!</h2>
+                    <p className="mt-4 text-slate-400 max-w-md leading-relaxed text-base">Your Comprehensive Auto Insurance for <strong className="text-white font-medium">MH 12 AB 4821</strong> is in good standing. Drive safely.</p>
+                  </div>
+                  <div className="hidden md:flex items-center justify-center h-40 w-40 rounded-full border border-white/5 bg-white/[0.02]">
+                    <ShieldCheck size={64} strokeWidth={1} className="text-cyan/80" />
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid gap-5 sm:grid-cols-3">
+                 <GlassCard className="p-7 relative overflow-hidden group cursor-default">
+                   <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                   <div className="flex justify-between items-start mb-6">
+                     <h3 className="text-sm font-medium text-slate-400">Coverage Limit</h3>
+                     <div className="p-2 rounded-lg bg-cyan/10"><ShieldCheck size={16} className="text-cyan" /></div>
+                   </div>
+                   <p className="text-3xl font-semibold text-white tracking-tight">₹15 Lakhs</p>
+                   <p className="mt-2 text-sm text-emerald">Zero Depreciation</p>
                  </GlassCard>
-                 <GlassCard className="p-5">
-                   <h3 className="text-sm font-medium text-slate-400">Insured Vehicle</h3>
-                   <p className="mt-2 text-xl font-semibold text-white">MH 12 AB 4821</p>
-                   <p className="mt-1 text-xs text-slate-500">2023 Tesla Model 3</p>
+                 <GlassCard className="p-7 relative overflow-hidden group cursor-default">
+                   <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                   <div className="flex justify-between items-start mb-6">
+                     <h3 className="text-sm font-medium text-slate-400">Next Premium</h3>
+                     <div className="p-2 rounded-lg bg-amber/10"><Clock3 size={16} className="text-amber" /></div>
+                   </div>
+                   <p className="text-3xl font-semibold text-white tracking-tight">5 Days</p>
+                   <p className="mt-2 text-sm text-slate-500">₹1,500 due Sept 10th</p>
                  </GlassCard>
-                 <GlassCard className="p-5">
-                   <h3 className="text-sm font-medium text-slate-400">Total Claims</h3>
-                   <p className="mt-2 text-xl font-semibold text-white">{claims.length}</p>
-                   <p className="mt-1 text-xs text-slate-500">Filed this year</p>
+                 <GlassCard className="p-7 relative overflow-hidden group cursor-default">
+                   <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                   <div className="flex justify-between items-start mb-6">
+                     <h3 className="text-sm font-medium text-slate-400">Filed Claims</h3>
+                     <div className="p-2 rounded-lg bg-slate-800"><FileCheck2 size={16} className="text-slate-400" /></div>
+                   </div>
+                   <p className="text-3xl font-semibold text-white tracking-tight">{claims.length}</p>
+                   <p className="mt-2 text-sm text-slate-500">Total this year</p>
                  </GlassCard>
               </div>
-              <h3 className="text-lg font-medium text-white mt-8 mb-4">Quick Actions</h3>
-              <div className="grid gap-4 sm:grid-cols-2">
-                 <button onClick={() => setTab('file')} className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 p-5 hover:bg-white/10 transition-colors text-left">
-                   <div>
-                     <p className="font-medium text-white flex items-center gap-2"><FileCheck2 size={16} className="text-cyan"/> File a new claim</p>
-                     <p className="mt-1 text-xs text-slate-400">Report an accident or damage instantly</p>
-                   </div>
-                   <ArrowRight size={16} className="text-slate-500" />
-                 </button>
-                 <button onClick={() => setTab('billing')} className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 p-5 hover:bg-white/10 transition-colors text-left">
-                   <div>
-                     <p className="font-medium text-white flex items-center gap-2"><CreditCard size={16} className="text-cyan"/> Pay Premium</p>
-                     <p className="mt-1 text-xs text-slate-400">Sept 2026 premium is due in 5 days</p>
-                   </div>
-                   <ArrowRight size={16} className="text-slate-500" />
-                 </button>
+
+              <div>
+                <div className="grid gap-5 sm:grid-cols-2">
+                   <button onClick={() => setTab('file')} className="group flex items-center justify-between rounded-3xl border border-white/10 bg-white/[0.02] p-6 sm:p-8 hover:bg-white/[0.04] hover:border-cyan/30 transition-all text-left">
+                     <div className="flex items-center gap-5">
+                       <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-2xl bg-cyan/10 text-cyan group-hover:scale-110 transition-transform"><FileCheck2 size={24}/></div>
+                       <div>
+                         <p className="font-medium text-white text-lg">File a new claim</p>
+                         <p className="mt-1 text-sm text-slate-400 leading-relaxed">Report an accident or damage instantly using our AI flow.</p>
+                       </div>
+                     </div>
+                     <ArrowRight size={20} className="text-slate-600 group-hover:text-cyan transition-colors group-hover:translate-x-1" />
+                   </button>
+                   <button onClick={() => setTab('billing')} className="group flex items-center justify-between rounded-3xl border border-white/10 bg-white/[0.02] p-6 sm:p-8 hover:bg-white/[0.04] hover:border-cyan/30 transition-all text-left">
+                     <div className="flex items-center gap-5">
+                       <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-2xl bg-cyan/10 text-cyan group-hover:scale-110 transition-transform"><CreditCard size={24}/></div>
+                       <div>
+                         <p className="font-medium text-white text-lg">Pay Premium</p>
+                         <p className="mt-1 text-sm text-slate-400 leading-relaxed">Sept 2026 premium is due soon. Pay securely.</p>
+                       </div>
+                     </div>
+                     <ArrowRight size={20} className="text-slate-600 group-hover:text-cyan transition-colors group-hover:translate-x-1" />
+                   </button>
+                </div>
               </div>
             </div>
           ) : tab === 'billing' ? (
-            <div className="max-w-xl mx-auto mt-10">
-              <GlassCard className="p-8 sm:p-10 text-center">
-                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-cyan/10 text-cyan mb-6"><CreditCard size={28} /></div>
-                <h2 className="text-2xl font-semibold text-white">September 2026 Premium</h2>
-                <div className="mt-4 space-y-1">
-                  <p className="text-slate-400">Vehicle: <strong className="text-white">MH 12 AB 4821</strong></p>
-                  <p className="text-slate-400">Plan: <strong className="text-white">Comprehensive Auto Coverage</strong></p>
-                  <p className="text-slate-400">Policy: <strong className="text-white">POL-92841</strong></p>
-                </div>
+            <div className="max-w-4xl mx-auto mt-4 space-y-8">
+              <GlassCard className="p-8 sm:p-12 text-center relative overflow-hidden">
+                <div className="absolute -top-24 -right-24 w-64 h-64 bg-cyan/10 rounded-full blur-[80px] pointer-events-none"></div>
+                <div className="absolute -bottom-24 -left-24 w-64 h-64 bg-emerald/10 rounded-full blur-[80px] pointer-events-none"></div>
                 
-                <div className="my-8">
-                  <span className="text-5xl font-semibold text-white">₹1,500</span>
-                  <span className="text-slate-500 ml-2">/ month</span>
-                </div>
-                
-                {isPremiumPaid ? (
-                  <div className="rounded-xl border border-emerald/20 bg-emerald/10 p-5 flex items-center justify-center gap-3 text-emerald font-medium">
-                    <BadgeCheck size={24} /> Premium Paid (Thank You!)
+                <div className="relative z-10">
+                  <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-2xl bg-white/[0.03] border border-white/10 text-cyan mb-8 shadow-lg shadow-black/20"><CreditCard size={32} /></div>
+                  <h2 className="text-3xl font-semibold text-white tracking-tight">September 2026 Premium</h2>
+                  <div className="mt-6 inline-flex flex-wrap items-center justify-center gap-3 sm:gap-6 text-sm">
+                    <span className="flex items-center gap-2 text-slate-400"><div className="h-1.5 w-1.5 rounded-full bg-slate-600"></div>Vehicle: <strong className="text-white font-medium">MH 12 AB 4821</strong></span>
+                    <span className="flex items-center gap-2 text-slate-400"><div className="h-1.5 w-1.5 rounded-full bg-slate-600"></div>Plan: <strong className="text-white font-medium">Comprehensive Auto</strong></span>
+                    <span className="flex items-center gap-2 text-slate-400"><div className="h-1.5 w-1.5 rounded-full bg-slate-600"></div>Policy: <strong className="text-white font-medium text-cyan">POL-92841</strong></span>
                   </div>
-                ) : (
-                  <button className="primary-button w-full text-lg py-4" onClick={payPremium}>
-                    Pay with Razorpay <ArrowRight size={20} className="ml-auto" />
-                  </button>
-                )}
-                
-                <div className="mt-6 flex items-center justify-center gap-2 text-xs text-slate-500">
-                  <ShieldCheck size={14} /> Secured by Razorpay Checkout
-                </div>
-
-                <div className="mt-12 border-t border-white/10 pt-8 text-left">
-                  <h3 className="text-lg font-medium text-white mb-4">Payment History</h3>
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between p-3 rounded-lg border border-white/5 bg-white/[0.02]">
-                      <div>
-                        <p className="text-sm font-medium text-white">August 2026 Premium</p>
-                        <p className="text-xs text-slate-500 mt-0.5">Paid on Aug 1st via Razorpay</p>
+                  
+                  <div className="my-10">
+                    <span className="text-6xl font-semibold text-white tracking-tighter">₹1,500</span>
+                    <span className="text-slate-500 ml-2 font-medium">/ month</span>
+                  </div>
+                  
+                  <div className="max-w-md mx-auto">
+                    {isPremiumPaid ? (
+                      <div className="rounded-2xl border border-emerald/20 bg-emerald/10 p-5 flex items-center justify-center gap-3 text-emerald font-medium text-lg">
+                        <BadgeCheck size={24} /> Premium Paid successfully!
                       </div>
-                      <div className="text-right">
-                        <p className="text-sm font-medium text-white">₹1,500</p>
-                        <p className="text-xs text-emerald flex items-center justify-end gap-1 mt-0.5"><Check size={12}/> Successful</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between p-3 rounded-lg border border-white/5 bg-white/[0.02]">
-                      <div>
-                        <p className="text-sm font-medium text-white">July 2026 Premium</p>
-                        <p className="text-xs text-slate-500 mt-0.5">Paid on Jul 2nd via Razorpay</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-sm font-medium text-white">₹1,500</p>
-                        <p className="text-xs text-emerald flex items-center justify-end gap-1 mt-0.5"><Check size={12}/> Successful</p>
-                      </div>
-                    </div>
+                    ) : (
+                      <button className="primary-button w-full text-lg py-5 shadow-lg shadow-cyan/20" onClick={payPremium}>
+                        Pay with Razorpay <ArrowRight size={20} className="ml-auto" />
+                      </button>
+                    )}
+                  </div>
+                  
+                  <div className="mt-8 flex items-center justify-center gap-2 text-xs font-medium text-slate-500">
+                    <ShieldCheck size={14} /> 256-bit Secured by Razorpay Checkout
                   </div>
                 </div>
-
               </GlassCard>
+
+              <div>
+                <h3 className="text-xl font-semibold tracking-tight text-white mb-5 flex items-center gap-2"><History size={18} className="text-slate-400"/> Payment History</h3>
+                <div className="grid sm:grid-cols-2 gap-5">
+                  <GlassCard className="p-6 flex flex-col justify-between hover:border-white/20 transition-colors group">
+                     <div className="flex justify-between items-start mb-6">
+                       <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald/10 text-emerald group-hover:scale-110 transition-transform"><Check size={24} /></div>
+                       <span className="text-[10px] uppercase tracking-wider font-medium bg-white/5 border border-white/5 px-2.5 py-1 rounded-full text-slate-400">Invoice #INV-0826</span>
+                     </div>
+                     <div>
+                       <p className="text-xl font-semibold text-white">August 2026</p>
+                       <p className="text-sm text-slate-400 mt-2 flex items-center gap-2">₹1,500 <span className="h-1 w-1 rounded-full bg-slate-600"></span> Paid on Aug 1st</p>
+                     </div>
+                  </GlassCard>
+                  
+                  <GlassCard className="p-6 flex flex-col justify-between hover:border-white/20 transition-colors group">
+                     <div className="flex justify-between items-start mb-6">
+                       <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald/10 text-emerald group-hover:scale-110 transition-transform"><Check size={24} /></div>
+                       <span className="text-[10px] uppercase tracking-wider font-medium bg-white/5 border border-white/5 px-2.5 py-1 rounded-full text-slate-400">Invoice #INV-0726</span>
+                     </div>
+                     <div>
+                       <p className="text-xl font-semibold text-white">July 2026</p>
+                       <p className="text-sm text-slate-400 mt-2 flex items-center gap-2">₹1,500 <span className="h-1 w-1 rounded-full bg-slate-600"></span> Paid on Jul 2nd</p>
+                     </div>
+                  </GlassCard>
+                </div>
+              </div>
             </div>
           ) : tab === 'history' ? (
             <div className="space-y-6">
