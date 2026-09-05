@@ -8,16 +8,17 @@ const { GoogleGenAI, Type, Schema } = require('@google/genai');
 const Razorpay = require('razorpay');
 
 const app = express();
-const port = 3000;
+const port = 3001; // Changed to 3001 to allow Next.js on 3000
 
-app.use(cors());
+app.use(cors({ origin: '*' })); // Allow Next.js frontend
 app.use(express.json());
+app.use('/uploads', express.static(path.join(__dirname, 'uploads'))); // Expose images for frontend
 
 // Initialize AI and Razorpay
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 let rzp;
-if (process.env.RAZORPAY_KEY_ID !== 'YOUR_RAZORPAY_KEY_ID_HERE') {
+if (process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_ID !== 'YOUR_RAZORPAY_KEY_ID_HERE') {
     try {
         rzp = new Razorpay({
             key_id: process.env.RAZORPAY_KEY_ID,
@@ -44,17 +45,16 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage: storage });
 
-const claimsDB = [];
+let claimsDB = [];
 
 /**
  * Real Agentic AI Triage Engine using Gemini Vision
  */
 async function analyzeClaim(claimText, imagePath) {
     try {
-        // Convert local file to base64
         const fileBytes = fs.readFileSync(imagePath);
         const base64Data = fileBytes.toString('base64');
-        const mimeType = 'image/jpeg'; // Assuming jpeg for prototype
+        const mimeType = 'image/jpeg'; // Fallback assuming jpeg
 
         const prompt = `You are an expert insurance fraud investigator. 
         A customer has submitted an auto insurance claim with the following description: "${claimText}"
@@ -62,7 +62,8 @@ async function analyzeClaim(claimText, imagePath) {
         Does the visual damage match the description? 
         If the damage is minor and matches the description (e.g. minor scratch), approve it for straight-through processing (AUTO_PAY).
         If the text claims severe damage ("totaled", "destroyed") but the image shows minor or no damage, flag it for INVESTIGATE.
-        If the text claims minor damage but the image shows severe damage, flag it for INVESTIGATE.`;
+        If the text claims minor damage but the image shows severe damage, flag it for INVESTIGATE.
+        If the image is completely unrelated to a car, flag it for INVESTIGATE.`;
 
         const response = await ai.models.generateContent({
             model: 'gemini-2.5-flash',
@@ -75,7 +76,7 @@ async function analyzeClaim(claimText, imagePath) {
                 responseSchema: {
                     type: Type.OBJECT,
                     properties: {
-                        riskScore: { type: Type.INTEGER, description: "Risk score from 0 to 100" },
+                        riskScore: { type: Type.INTEGER, description: "Risk score from 0 to 100 (0=Safest, 100=Highest Fraud Risk)" },
                         decision: { type: Type.STRING, enum: ["AUTO_PAY", "INVESTIGATE"], description: "The final routing decision" },
                         reasoning: { type: Type.STRING, description: "Detailed explanation of why this decision was made based on comparing the image and text" }
                     },
@@ -104,11 +105,10 @@ async function initiateRazorpayPayout(amount, accountNumber) {
     
     if (rzp) {
         try {
-            // Note: In a real production env, you must first create a contact and fund_account.
-            // For the hackathon, if this fails due to missing fund_account setup, we catch it.
+            // Note: In production, requires a contact and fund_account.
             const payout = await rzp.payouts.create({
-                account_number: "2323230058348281", // Razorpay test account
-                fund_account_id: "fa_" + accountNumber, // Would be dynamically created
+                account_number: "2323230058348281", // Test account
+                fund_account_id: "fa_" + accountNumber, 
                 amount: amount * 100, // in paise
                 currency: "INR",
                 mode: "IMPS",
@@ -122,7 +122,7 @@ async function initiateRazorpayPayout(amount, accountNumber) {
         }
     }
 
-    // Mock response fallback if keys are missing or API fails (e.g., fund_account not setup)
+    // Mock response fallback
     await new Promise(resolve => setTimeout(resolve, 1500));
     return {
         id: "pout_" + Math.random().toString(36).substring(7),
@@ -136,44 +136,59 @@ async function initiateRazorpayPayout(amount, accountNumber) {
     };
 }
 
-// Routes
-app.post('/api/claims', upload.array('evidence'), async (req, res) => {
+// Format date nicely
+const timeAgo = (date) => {
+    const seconds = Math.floor((new Date() - new Date(date)) / 1000);
+    if (seconds < 60) return seconds + " sec ago";
+    if (seconds < 3600) return Math.floor(seconds / 60) + " min ago";
+    return Math.floor(seconds / 3600) + " hr ago";
+};
+
+// POST: Submit new claim
+app.post('/api/claims', upload.single('evidence'), async (req, res) => {
     try {
-        const { description, accountNumber = '1234567890' } = req.body;
+        const { name, vehicle, claimId, description, accountNumber = '1234567890' } = req.body;
         
-        if (!description) {
-            return res.status(400).json({ error: 'Description is required' });
+        if (!description || !name || !vehicle || !claimId) {
+            return res.status(400).json({ error: 'Missing required fields' });
         }
 
-        const imageFile = req.files && req.files.length > 0 ? req.files[0] : null;
+        const imageFile = req.file;
         if (!imageFile) {
             return res.status(400).json({ error: 'Evidence image is required' });
         }
 
         const imagePath = path.join(uploadDir, imageFile.filename);
 
-        // 1. Analyze via Agentic AI (Gemini Vision)
-        console.log("Analyzing claim with Gemini...");
+        console.log(`Analyzing claim ${claimId} with Gemini...`);
         const analysis = await analyzeClaim(description, imagePath);
         console.log("Analysis Complete:", analysis);
 
+        // Map to frontend structure
         const newClaim = {
-            id: 'CLM-' + Math.floor(1000 + Math.random() * 9000),
+            id: 'id-' + Math.floor(1000 + Math.random() * 9000),
+            name,
+            vehicle,
+            claimId,
             description,
-            evidenceFiles: [imageFile.filename],
-            analysis,
-            status: analysis.decision === 'AUTO_PAY' ? 'PROCESSING_PAYOUT' : 'PENDING_INVESTIGATION',
-            createdAt: new Date().toISOString()
+            image: `http://localhost:3001/uploads/${imageFile.filename}`, // URL for frontend
+            risk: analysis.riskScore,
+            reasoning: analysis.reasoning,
+            rawDecision: analysis.decision,
+            status: analysis.decision === 'AUTO_PAY' ? 'Approved' : (analysis.riskScore > 75 ? 'Flagged' : 'Pending Review'),
+            submittedAt: new Date().toISOString(), // Keep raw date for mapping to 'submitted' later
+            payoutStatus: 'Not Initiated'
         };
 
-        // 2. If Auto-Pay, trigger Razorpay Payout
-        if (analysis.decision === 'AUTO_PAY') {
-            const payoutResult = await initiateRazorpayPayout(5000, accountNumber); // Example fixed amount for minor scratch
+        // If Auto-Pay, trigger Razorpay Payout instantly
+        if (newClaim.status === 'Approved') {
+            const payoutResult = await initiateRazorpayPayout(5000, accountNumber);
             newClaim.payoutDetails = payoutResult;
-            newClaim.status = 'PAYOUT_INITIATED';
+            newClaim.payoutStatus = 'Processing';
         }
 
-        claimsDB.push(newClaim);
+        // Prepend to show newest first
+        claimsDB.unshift(newClaim);
         
         res.status(201).json({
             message: 'Claim processed',
@@ -186,8 +201,73 @@ app.post('/api/claims', upload.array('evidence'), async (req, res) => {
     }
 });
 
+// GET: Fetch claims for Agent Dashboard
 app.get('/api/claims', (req, res) => {
-    res.json(claimsDB);
+    // Map the DB structure to match exactly what the frontend `Claim` type expects
+    const mappedClaims = claimsDB.map(c => ({
+        id: c.id,
+        name: c.name,
+        vehicle: c.vehicle,
+        claimId: c.claimId,
+        submitted: timeAgo(c.submittedAt),
+        risk: c.risk,
+        status: c.status,
+        description: c.description,
+        image: c.image,
+        reasoning: c.reasoning,
+        payoutStatus: c.payoutStatus
+    }));
+    res.json(mappedClaims);
+});
+
+// PATCH: Manual Agent Approval / Rejection
+app.patch('/api/claims/:id/status', async (req, res) => {
+    try {
+        const claimId = req.params.id;
+        const { status, accountNumber = '1234567890' } = req.body;
+        
+        const claimIndex = claimsDB.findIndex(c => c.id === claimId);
+        if (claimIndex === -1) {
+            return res.status(404).json({ error: 'Claim not found' });
+        }
+
+        claimsDB[claimIndex].status = status;
+
+        // If agent manually approves, trigger the payout!
+        if (status === 'Approved') {
+            const payoutResult = await initiateRazorpayPayout(5000, accountNumber);
+            claimsDB[claimIndex].payoutDetails = payoutResult;
+            claimsDB[claimIndex].payoutStatus = 'Processing';
+        }
+
+        res.json({ message: 'Claim updated', claim: claimsDB[claimIndex] });
+    } catch (error) {
+        console.error("Error updating claim:", error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// POST: Simulate Razorpay Webhook
+app.post('/api/webhooks/razorpay', (req, res) => {
+    try {
+        const { claimId, event } = req.body;
+        const claim = claimsDB.find(c => c.id === claimId);
+        if (!claim) {
+            return res.status(404).json({ error: 'Claim not found' });
+        }
+        
+        if (event === 'payout.processed') {
+            claim.payoutStatus = 'Processed';
+        } else if (event === 'payout.failed') {
+            claim.payoutStatus = 'Failed';
+        }
+
+        console.log(`[Webhook] Received event ${event} for claim ${claimId}`);
+        res.json({ message: 'Webhook received successfully', claim });
+    } catch (error) {
+        console.error("Webhook Error:", error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
 });
 
 app.listen(port, () => {
