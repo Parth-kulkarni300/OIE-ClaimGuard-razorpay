@@ -56,14 +56,11 @@ async function analyzeClaim(claimText, imagePath) {
         const base64Data = fileBytes.toString('base64');
         const mimeType = 'image/jpeg'; // Fallback assuming jpeg
 
-        const prompt = `You are an expert insurance fraud investigator. 
+        const prompt = `You are an expert insurance fraud investigator working for Acko Insurance. 
         A customer has submitted an auto insurance claim with the following description: "${claimText}"
         Analyze the provided image of the car damage. 
-        Does the visual damage match the description? 
-        If the damage is minor and matches the description (e.g. minor scratch), approve it for straight-through processing (AUTO_PAY).
-        If the text claims severe damage ("totaled", "destroyed") but the image shows minor or no damage, flag it for INVESTIGATE.
-        If the text claims minor damage but the image shows severe damage, flag it for INVESTIGATE.
-        If the image is completely unrelated to a car, flag it for INVESTIGATE.`;
+        If the image appears to be fake, AI-generated, or completely unrelated to a vehicle, set decision to "FLAGGED".
+        Otherwise, if the damage is real, set decision to "REAL" and estimate a recommended payout amount in INR based on the visual severity of the damage (e.g., minor scratch = 5000, severe damage = 50000). If the decision is FLAGGED, set the recommended payout to 0.`;
 
         const response = await ai.models.generateContent({
             model: 'gemini-2.5-flash',
@@ -77,10 +74,11 @@ async function analyzeClaim(claimText, imagePath) {
                     type: Type.OBJECT,
                     properties: {
                         riskScore: { type: Type.INTEGER, description: "Risk score from 0 to 100 (0=Safest, 100=Highest Fraud Risk)" },
-                        decision: { type: Type.STRING, enum: ["AUTO_PAY", "INVESTIGATE"], description: "The final routing decision" },
-                        reasoning: { type: Type.STRING, description: "Detailed explanation of why this decision was made based on comparing the image and text" }
+                        decision: { type: Type.STRING, enum: ["REAL", "FLAGGED"], description: "The final routing decision" },
+                        recommendedPayout: { type: Type.INTEGER, description: "Recommended payout amount in INR" },
+                        reasoning: { type: Type.STRING, description: "Detailed explanation of why this decision was made and how the payout was calculated" }
                     },
-                    required: ["riskScore", "decision", "reasoning"]
+                    required: ["riskScore", "decision", "recommendedPayout", "reasoning"]
                 }
             }
         });
@@ -91,7 +89,8 @@ async function analyzeClaim(claimText, imagePath) {
         console.error("Gemini API Error:", error);
         return {
             riskScore: 99,
-            decision: 'INVESTIGATE',
+            decision: 'FLAGGED',
+            recommendedPayout: 0,
             reasoning: 'AI Error occurred. Manual review required.'
         };
     }
@@ -175,17 +174,11 @@ app.post('/api/claims', upload.single('evidence'), async (req, res) => {
             risk: analysis.riskScore,
             reasoning: analysis.reasoning,
             rawDecision: analysis.decision,
-            status: analysis.decision === 'AUTO_PAY' ? 'Approved' : (analysis.riskScore > 75 ? 'Flagged' : 'Pending Review'),
+            recommendedPayout: analysis.recommendedPayout,
+            status: analysis.decision === 'FLAGGED' ? 'Flagged' : 'Pending Review',
             submittedAt: new Date().toISOString(), // Keep raw date for mapping to 'submitted' later
             payoutStatus: 'Not Initiated'
         };
-
-        // If Auto-Pay, trigger Razorpay Payout instantly
-        if (newClaim.status === 'Approved') {
-            const payoutResult = await initiateRazorpayPayout(5000, accountNumber);
-            newClaim.payoutDetails = payoutResult;
-            newClaim.payoutStatus = 'Processing';
-        }
 
         // Prepend to show newest first
         claimsDB.unshift(newClaim);
@@ -215,6 +208,7 @@ app.get('/api/claims', (req, res) => {
         description: c.description,
         image: c.image,
         reasoning: c.reasoning,
+        recommendedPayout: c.recommendedPayout,
         payoutStatus: c.payoutStatus
     }));
     res.json(mappedClaims);
@@ -235,7 +229,8 @@ app.patch('/api/claims/:id/status', async (req, res) => {
 
         // If agent manually approves, trigger the payout!
         if (status === 'Approved') {
-            const payoutResult = await initiateRazorpayPayout(5000, accountNumber);
+            const payoutAmount = claimsDB[claimIndex].recommendedPayout || 5000;
+            const payoutResult = await initiateRazorpayPayout(payoutAmount, accountNumber);
             claimsDB[claimIndex].payoutDetails = payoutResult;
             claimsDB[claimIndex].payoutStatus = 'Processing';
         }

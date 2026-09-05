@@ -47,6 +47,7 @@ type Claim = {
   description: string
   image: string
   reasoning: string
+  recommendedPayout?: number
   payoutStatus?: string
 }
 
@@ -72,10 +73,10 @@ function Login({ onSelect }: { onSelect: (role: Role) => void }) {
     e.preventDefault()
     if (email === 'customer@demo.com' && password === 'demo') {
       onSelect('customer')
-    } else if (email === 'agent@demo.com' && password === 'demo') {
+    } else if (email === 'acko@demo.com' && password === 'demo') {
       onSelect('agent')
     } else {
-      setError('Invalid credentials. Use customer@demo.com or agent@demo.com with password: demo')
+      setError('Invalid credentials. Use customer@demo.com or acko@demo.com with password: demo')
     }
   }
 
@@ -109,7 +110,7 @@ function Login({ onSelect }: { onSelect: (role: Role) => void }) {
             <div className="mt-8 border-t border-white/8 pt-5 text-xs text-slate-500 space-y-2">
               <p><strong>Demo Credentials:</strong></p>
               <p>Customer: <span className="text-white">customer@demo.com</span> / <span className="text-white">demo</span></p>
-              <p>Agent: <span className="text-white">agent@demo.com</span> / <span className="text-white">demo</span></p>
+              <p>Acko Insurance: <span className="text-white">acko@demo.com</span> / <span className="text-white">demo</span></p>
             </div>
           </GlassCard>
         </div>
@@ -199,14 +200,10 @@ function Customer({ onBack }: { onBack: () => void }) {
       });
       const data = await res.json();
       
-      if (data.claim.status === 'Approved') {
-        setStage('success');
-      } else {
-        alert("Claim flagged and sent to Agent Dashboard for manual review.\n\nAI Reasoning: " + data.claim.reasoning);
-        setStage('form');
-        setValues({ ...values, claim: 'CLM-' + Math.floor(1000 + Math.random() * 9000), description: '' });
-        setFile(null);
-      }
+      alert("Claim submitted and sent to Acko Insurance for manual review.");
+      setStage('form');
+      setValues({ ...values, claim: 'CLM-' + Math.floor(1000 + Math.random() * 9000), description: '' });
+      setFile(null);
     } catch (e) {
       console.error(e);
       alert("Error submitting claim. Is backend running on port 3001?");
@@ -277,7 +274,7 @@ function Customer({ onBack }: { onBack: () => void }) {
         </div>
         <button className="nav-item mt-4 w-full" onClick={onBack}><LogOut size={16} /> Sign out</button>
       </aside>
-      
+      <div className="min-w-0 flex-1">
         <div className="flex items-center justify-between border-b border-white/8 px-5 py-4 lg:px-8">
           <div><div className="flex items-center gap-3"><button className="icon-button lg:hidden" onClick={() => setSidebar(true)}><Menu size={17} /></button><div><h1 className="text-xl font-semibold tracking-tight text-white sm:text-2xl">Good morning, Ananya</h1></div></div></div>
         </div>
@@ -443,8 +440,10 @@ function Customer({ onBack }: { onBack: () => void }) {
                           <p className="text-sm text-slate-300">{c.description}</p>
                         </div>
                         <div className="rounded-lg border border-white/8 bg-white/5 p-4">
-                          <p className="text-[10px] uppercase tracking-wider text-slate-500 mb-2">Decision Context</p>
-                          <p className="text-xs text-slate-300 leading-relaxed mb-4">{c.reasoning}</p>
+                          <p className="text-[10px] uppercase tracking-wider text-slate-500 mb-2">Status Details</p>
+                          <p className="text-xs text-slate-300 leading-relaxed mb-4">
+                            {c.status === 'Approved' ? 'Your claim has been verified and approved for payout.' : 'Your claim is currently under review by our agents at Acko Insurance. We will notify you once a decision is made.'}
+                          </p>
                           {c.status === 'Approved' && (
                             <div className="flex items-center justify-between text-sm">
                               <div className="flex items-center gap-2 text-emerald font-medium">
@@ -462,7 +461,13 @@ function Customer({ onBack }: { onBack: () => void }) {
                 </div>
               )}
             </div>
-          ) : stage === 'loading' ? <div className="flex min-h-[65vh] items-center justify-center"><GlassCard className="w-full max-w-lg p-10 text-center"><div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-cyan/10 text-cyan"><Sparkles className="animate-pulse" size={28} /></div><h1 className="mt-7 text-2xl font-semibold text-white">Agentic AI is analyzing your claim...</h1><p className="mt-3 text-sm leading-6 text-slate-400">Reviewing vehicle imagery, policy coverage, and incident details via Gemini API.</p><div className="mt-8 h-1.5 overflow-hidden rounded-full bg-white/8"><div className="analysis-bar h-full rounded-full bg-cyan" /></div></GlassCard></div> : stage === 'success' ? <div className="flex min-h-[65vh] items-center justify-center"><GlassCard className="w-full max-w-xl p-8 text-center sm:p-12"><div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-emerald/12 text-emerald"><Check size={34} /></div><div className="eyebrow mx-auto mt-7 w-fit text-emerald"><BadgeCheck size={14} /> Safe claim verified</div><h1 className="mt-5 text-3xl font-semibold tracking-tight text-white">Claim auto-approved.</h1><p className="mx-auto mt-3 max-w-md text-sm leading-6 text-slate-400">Your claim has been approved and an <strong className="font-medium text-white">INR 5,000 payout</strong> has been initiated via Razorpay.</p><div className="mt-8 rounded-2xl border border-emerald/20 bg-emerald/8 p-4 text-left"><div className="flex items-center justify-between text-sm"><span className="text-slate-400">Claim reference</span><span className="font-mono text-emerald">{values.claim}</span></div><div className="mt-3 flex items-center justify-between text-sm"><span className="text-slate-400">Expected credit</span><span className="text-white">Within 2 hours</span></div></div><button className="secondary-button mt-8 w-full" onClick={() => {setStage('form'); setValues({ ...values, claim: 'CLM-' + Math.floor(1000 + Math.random() * 9000), description: '' }); setFile(null);}}>File another claim</button></GlassCard></div> : <><div className="mb-9 flex flex-col justify-between gap-4 sm:flex-row sm:items-end"><div><div className="eyebrow"><FileCheck2 size={14} /> Customer portal</div><h2 className="mt-3 text-2xl font-semibold tracking-tight text-white sm:text-3xl">File a new claim</h2><p className="mt-2 text-sm text-slate-400">Tell us what happened. Our AI will handle the first review.</p></div><div className="flex items-center gap-2 text-xs text-slate-500"><span className="h-2 w-2 rounded-full bg-emerald" /> Secure and encrypted</div></div><div className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]"><GlassCard className="p-6 sm:p-8"><div className="mb-7 flex items-center justify-between"><div><h2 className="font-medium text-white">Incident details</h2><p className="mt-1 text-xs text-slate-500">All fields are required for accurate triage.</p></div><span className="step-pill">1 of 2</span></div><div className="grid gap-5 sm:grid-cols-2"><label className="field-label">Full name<input className="field-input" placeholder="e.g. Ananya Rao" value={values.name} onChange={setField('name')} /></label><label className="field-label">Policy / claim ID<input className="field-input" placeholder="e.g. POL-92841" value={values.claim} onChange={setField('claim')} /></label><label className="field-label sm:col-span-2">Vehicle registration number<input className="field-input" placeholder="e.g. MH 12 AB 4821" value={values.vehicle} onChange={setField('vehicle')} /></label><div className="sm:col-span-2"><label className="field-label flex items-center justify-between">Accident description <button onClick={toggleListening} className={`flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium transition-colors ${listening ? 'bg-coral text-white animate-pulse' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}><Mic size={12}/> {listening ? 'Listening...' : 'Speak'}</button></label><textarea className="field-input min-h-32 resize-none mt-2" placeholder='Describe when and how the damage occurred... Try "minor scratch" for auto-pay or "completely totaled" for investigation.' value={values.description} onChange={setField('description')} /></div></div></GlassCard><GlassCard className="flex flex-col p-6 sm:p-8"><div className="mb-7"><h2 className="font-medium text-white">Damage photos</h2><p className="mt-1 text-xs text-slate-500">Upload clear photos of the affected area.</p></div><label className={`drop-zone flex flex-1 cursor-pointer flex-col items-center justify-center text-center ${dragging ? 'drop-zone-active' : ''}`} onDragOver={(e: DragEvent) => { e.preventDefault(); setDragging(true) }} onDragLeave={() => setDragging(false)} onDrop={(e: DragEvent) => { e.preventDefault(); setDragging(false); onFile(e.dataTransfer.files) }}><input type="file" accept="image/*" className="sr-only" onChange={(e) => onFile(e.target.files)} />{file ? <><FileImage size={30} className="text-cyan" /><p className="mt-4 max-w-full truncate px-4 text-sm text-white">{file.name}</p><p className="mt-1 text-xs text-emerald">Photo ready to analyze</p></> : <><div className="flex h-12 w-12 items-center justify-center rounded-xl bg-cyan/10 text-cyan"><UploadCloud size={22} /></div><p className="mt-4 text-sm text-white">Drop photos here or <span className="text-cyan">browse</span></p><p className="mt-2 text-xs text-slate-500">PNG, JPG up to 10MB</p></>}</label><button className="primary-button mt-6 w-full" onClick={submit}><Sparkles size={17} /> Submit for AI review <ArrowRight size={16} className="ml-auto" /></button></GlassCard></div></>}
+          ) : stage === 'loading' ? <div className="flex min-h-[65vh] items-center justify-center"><GlassCard className="w-full max-w-lg p-10 text-center"><div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-cyan/10 text-cyan"><Sparkles className="animate-pulse" size={28} /></div><h1 className="mt-7 text-2xl font-semibold text-white">Agentic AI is analyzing your claim...</h1><p className="mt-3 text-sm leading-6 text-slate-400">Reviewing vehicle imagery, policy coverage, and incident details via Gemini API.</p><div className="mt-8 h-1.5 overflow-hidden rounded-full bg-white/8"><div className="analysis-bar h-full rounded-full bg-cyan" /></div></GlassCard></div> : <><div className="mb-9 flex flex-col justify-between gap-4 sm:flex-row sm:items-end"><div><div className="eyebrow"><FileCheck2 size={14} /> Customer portal</div><h2 className="mt-3 text-2xl font-semibold tracking-tight text-white sm:text-3xl">File a new claim</h2><p className="mt-2 text-sm text-slate-400">Tell us what happened. Our AI will handle the first review.</p></div><div className="flex items-center gap-2 text-xs text-slate-500"><span className="h-2 w-2 rounded-full bg-emerald" /> Secure and encrypted</div></div><div className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]"><GlassCard className="p-6 sm:p-8"><div className="mb-7 flex items-center justify-between"><div><h2 className="font-medium text-white">Incident details</h2><p className="mt-1 text-xs text-slate-500">All fields are required for accurate triage.</p></div><span className="step-pill">1 of 2</span></div><div className="grid gap-5 sm:grid-cols-2"><label className="field-label">Full name<input className="field-input" placeholder="e.g. Ananya Rao" value={values.name} onChange={setField('name')} /></label><label className="field-label">Policy / claim ID<input className="field-input" placeholder="e.g. POL-92841" value={values.claim} onChange={setField('claim')} /></label><label className="field-label sm:col-span-2">Vehicle registration number<input className="field-input" placeholder="e.g. MH 12 AB 4821" value={values.vehicle} onChange={setField('vehicle')} /></label><label className="field-label sm:col-span-2">
+  <div className="flex items-center justify-between w-full">
+    <span>Accident description</span>
+    <button onClick={toggleListening} type="button" className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-semibold transition-all ${listening ? 'bg-coral/20 text-coral border border-coral/30 animate-pulse' : 'bg-white/5 text-slate-300 border border-white/10 hover:bg-white/10 hover:border-cyan/30'}`}><Mic size={12}/> {listening ? 'Listening...' : 'Speak to AI'}</button>
+  </div>
+  <textarea className="field-input min-h-32 resize-none mt-1 w-full" placeholder='Describe when and how the damage occurred... Try "minor scratch" for auto-pay or "completely totaled" for investigation.' value={values.description} onChange={setField('description')} />
+</label></div></GlassCard><GlassCard className="flex flex-col p-6 sm:p-8"><div className="mb-7"><h2 className="font-medium text-white">Damage photos</h2><p className="mt-1 text-xs text-slate-500">Upload clear photos of the affected area.</p></div><label className={`drop-zone flex flex-1 cursor-pointer flex-col items-center justify-center text-center ${dragging ? 'drop-zone-active' : ''}`} onDragOver={(e: DragEvent) => { e.preventDefault(); setDragging(true) }} onDragLeave={() => setDragging(false)} onDrop={(e: DragEvent) => { e.preventDefault(); setDragging(false); onFile(e.dataTransfer.files) }}><input type="file" accept="image/*" className="sr-only" onChange={(e) => onFile(e.target.files)} />{file ? <><FileImage size={30} className="text-cyan" /><p className="mt-4 max-w-full truncate px-4 text-sm text-white">{file.name}</p><p className="mt-1 text-xs text-emerald">Photo ready to analyze</p></> : <><div className="flex h-12 w-12 items-center justify-center rounded-xl bg-cyan/10 text-cyan"><UploadCloud size={22} /></div><p className="mt-4 text-sm text-white">Drop photos here or <span className="text-cyan">browse</span></p><p className="mt-2 text-xs text-slate-500">PNG, JPG up to 10MB</p></>}</label><button className="primary-button mt-6 w-full" onClick={submit}><Sparkles size={17} /> Submit for AI review <ArrowRight size={16} className="ml-auto" /></button></GlassCard></div></>}
         </div>
       </div>
     </div>
@@ -503,19 +508,57 @@ function Agent({ onBack }: { onBack: () => void }) {
 
   const updateStatus = async (status: ClaimStatus) => {
     if (!selected) return;
-    try {
-      await fetch(`http://localhost:3001/api/claims/${selected.id}/status`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status })
-      });
-      setClaims(claims.map((claim) => claim.id === selected.id ? { ...claim, status, payoutStatus: 'Processing' } : claim));
-      if (status === 'Approved') {
-        alert("Claim manually approved. Razorpay payout initiated!");
+    
+    if (status === 'Approved') {
+      try {
+        const amount = selected.recommendedPayout || 5000;
+        const res = await fetch('http://localhost:3001/api/create-order', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ amount })
+        });
+        const data = await res.json();
+        
+        if (!data.order_id) {
+          alert("Could not generate Razorpay order. Check backend .env");
+          return;
+        }
+
+        const options = {
+          key: "YOUR_RAZORPAY_KEY_ID_HERE",
+          amount: amount * 100,
+          currency: "INR",
+          name: "Acko Insurance",
+          description: `Disburse Payout for Claim ${selected.claimId}`,
+          order_id: data.order_id,
+          handler: async function (response: any) {
+            await fetch(`http://localhost:3001/api/claims/${selected.id}/status`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ status })
+            });
+            setClaims(claims.map((claim) => claim.id === selected.id ? { ...claim, status, payoutStatus: 'Processing' } : claim));
+            alert("Payout manually approved and disbursed via Razorpay!");
+          },
+          theme: { color: "#00d5dc" }
+        };
+        const rzp1 = new (window as any).Razorpay(options);
+        rzp1.open();
+      } catch (e) {
+        console.error(e);
+        alert("Failed to initialize Razorpay checkout");
       }
-    } catch (e) {
-      console.error(e);
-      alert("Error updating status.");
+    } else {
+      try {
+        await fetch(`http://localhost:3001/api/claims/${selected.id}/status`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status })
+        });
+        setClaims(claims.map((claim) => claim.id === selected.id ? { ...claim, status, payoutStatus: 'Processing' } : claim));
+      } catch (e) {
+        console.error(e);
+      }
     }
   }
 
@@ -554,7 +597,7 @@ function Agent({ onBack }: { onBack: () => void }) {
     });
   }
 
-  return <main className="min-h-screen"><TopBar role="Investigator workspace" onBack={onBack} name="Alex Kumar" initials="AK" /><div className="flex"><aside className={`${sidebar ? 'flex' : 'hidden'} fixed inset-y-0 left-0 z-20 w-64 flex-col border-r border-white/8 bg-navy px-4 py-5 lg:static lg:flex lg:min-h-[calc(100vh-73px)]`}><div className="mb-8 flex items-center justify-between px-2"><Logo compact /><button className="icon-button lg:hidden" onClick={() => setSidebar(false)}><X size={16} /></button></div>
+  return <main className="min-h-screen"><TopBar role="Acko Insurance Workspace" onBack={onBack} name="Acko Adjuster" initials="AI" /><div className="flex"><aside className={`${sidebar ? 'flex' : 'hidden'} fixed inset-y-0 left-0 z-20 w-64 flex-col border-r border-white/8 bg-navy px-4 py-5 lg:static lg:flex lg:min-h-[calc(100vh-73px)]`}><div className="mb-8 flex items-center justify-between px-2"><Logo compact /><button className="icon-button lg:hidden" onClick={() => setSidebar(false)}><X size={16} /></button></div>
     
     <nav className="space-y-1">
       <div className={tab === 'overview' ? 'nav-active' : 'nav-item'} onClick={() => setTab('overview')}><LayoutDashboard size={16} /> Overview</div>
@@ -563,7 +606,7 @@ function Agent({ onBack }: { onBack: () => void }) {
       <div className={tab === 'payouts' ? 'nav-active' : 'nav-item'} onClick={() => setTab('payouts')}><FileCheck2 size={16} /> Payouts</div>
     </nav>
     
-    <div className="mt-auto rounded-2xl border border-cyan/15 bg-cyan/5 p-4"><div className="flex items-center gap-2 text-xs font-medium text-cyan"><Gauge size={15} /> AI health</div><p className="mt-3 text-xs leading-5 text-slate-400">All systems operational. Triage engine is processing normally via Gemini API.</p><div className="mt-3 h-1 rounded-full bg-white/8"><div className="h-full w-[94%] rounded-full bg-cyan" /></div></div><button className="nav-item mt-4 w-full" onClick={onBack}><LogOut size={16} /> Sign out</button></aside><div className="min-w-0 flex-1"><div className="flex items-center justify-between border-b border-white/8 px-5 py-4 lg:px-8"><div><div className="flex items-center gap-3"><button className="icon-button lg:hidden" onClick={() => setSidebar(true)}><Menu size={17} /></button><div><div className="eyebrow hidden sm:flex"><Gauge size={14} /> Operations overview</div><h1 className="mt-1 text-xl font-semibold tracking-tight text-white sm:text-2xl">Good morning, Agent</h1></div></div></div><button className="secondary-button hidden sm:flex"><Bell size={15} /> Alerts <span className="badge-count">{flagged}</span></button></div>
+    <div className="mt-auto rounded-2xl border border-cyan/15 bg-cyan/5 p-4"><div className="flex items-center gap-2 text-xs font-medium text-cyan"><Gauge size={15} /> AI health</div><p className="mt-3 text-xs leading-5 text-slate-400">All systems operational. Triage engine is processing normally via Gemini API.</p><div className="mt-3 h-1 rounded-full bg-white/8"><div className="h-full w-[94%] rounded-full bg-cyan" /></div></div><button className="nav-item mt-4 w-full" onClick={onBack}><LogOut size={16} /> Sign out</button></aside><div className="min-w-0 flex-1"><div className="flex items-center justify-between border-b border-white/8 px-5 py-4 lg:px-8"><div><div className="flex items-center gap-3"><button className="icon-button lg:hidden" onClick={() => setSidebar(true)}><Menu size={17} /></button><div><div className="eyebrow hidden sm:flex"><Gauge size={14} /> Operations overview</div><h1 className="mt-1 text-xl font-semibold tracking-tight text-white sm:text-2xl">Good morning, Acko Insurance</h1></div></div></div><button className="secondary-button hidden sm:flex"><Bell size={15} /> Alerts <span className="badge-count">{flagged}</span></button></div>
     
     <div className="p-5 lg:p-8">
       {tab === 'analytics' ? (
@@ -626,7 +669,7 @@ function Agent({ onBack }: { onBack: () => void }) {
               <p className="text-slate-500">{loading ? "Loading claims from backend..." : "No claims match this filter."}</p>
             </GlassCard>
           ) : selected ? (
-            <GlassCard className="p-5 sm:p-7"><div className="flex flex-col justify-between gap-4 border-b border-white/8 pb-5 sm:flex-row sm:items-start"><div><div className="flex items-center gap-2"><span className="eyebrow">Claim detail</span><Status status={selected.status} /></div><h2 className="mt-3 text-2xl font-semibold tracking-tight text-white">{selected.claimId}</h2><p className="mt-1 text-sm text-slate-400">Submitted {selected.submitted} by {selected.name}</p></div></div><div className="mt-6 grid gap-6 lg:grid-cols-[0.92fr_1.08fr]"><div><div className="damage-image"><img src={selected.image} alt="Uploaded vehicle damage evidence" /><div className="image-label"><ImagePlus size={14} /> Evidence image</div></div><div className="mt-4 grid grid-cols-3 gap-2"><Info label="Customer" value={selected.name} /><Info label="Vehicle no." value={selected.vehicle} /><Info label="Policy" value="Comprehensive" /></div><div className="mt-4"><Info label="Customer Description" value={selected.description} /></div></div><div><div className="flex items-center justify-between"><h3 className="font-medium text-white">AI triage report</h3><div className="flex items-center gap-2"><button onClick={downloadPDF} className="flex items-center gap-1 text-[11px] text-cyan hover:text-white px-2 py-1 rounded border border-cyan/30 transition-colors"><Download size={12}/> PDF Audit</button><span className={`risk-pill ${selected.risk > 75 ? 'risk-high' : selected.risk > 40 ? 'risk-medium' : 'risk-low'}`}><Gauge size={13} /> {selected.risk}% risk</span></div></div><div className="mt-4 rounded-2xl border border-white/8 bg-white/[0.025] p-5"><p className="text-sm leading-6 text-slate-300">{selected.reasoning}</p><div className="mt-5 grid grid-cols-2 gap-3"><div className="report-stat"><span>Visual match</span><strong>{selected.risk > 75 ? 'Low' : 'High'}</strong></div><div className="report-stat"><span>Policy coverage</span><strong className="text-emerald">Active</strong></div></div></div><div className="mt-5 flex flex-col gap-3 sm:flex-row">{selected.status === 'Pending Review' || selected.status === 'Flagged' ? <><button className="approve-button flex-1" onClick={() => updateStatus('Approved')}><BadgeCheck size={16} /> Approve & payout</button><button className="reject-button flex-1" onClick={() => updateStatus('Flagged')}><AlertTriangle size={16} /> Reject & flag</button></> : <div className="rounded border border-emerald/20 bg-emerald/10 p-3 w-full flex items-center justify-center gap-2 text-sm text-emerald"><BadgeCheck size={16} /> Payout Initiated via Razorpay <span className={`ml-2 text-[10px] px-2 py-0.5 rounded-full ${selected.payoutStatus === 'Processed' ? 'bg-emerald/20 text-emerald' : 'bg-amber/20 text-amber'}`}>{selected.payoutStatus || 'Processing'}</span></div>}</div></div></div></GlassCard>
+            <GlassCard className="p-5 sm:p-7"><div className="flex flex-col justify-between gap-4 border-b border-white/8 pb-5 sm:flex-row sm:items-start"><div><div className="flex items-center gap-2"><span className="eyebrow">Claim detail</span><Status status={selected.status} /></div><h2 className="mt-3 text-2xl font-semibold tracking-tight text-white">{selected.claimId}</h2><p className="mt-1 text-sm text-slate-400">Submitted {selected.submitted} by {selected.name}</p></div></div><div className="mt-6 grid gap-6 lg:grid-cols-[0.92fr_1.08fr]"><div><div className="damage-image"><img src={selected.image} alt="Uploaded vehicle damage evidence" /><div className="image-label"><ImagePlus size={14} /> Evidence image</div></div><div className="mt-4 grid grid-cols-3 gap-2"><Info label="Customer" value={selected.name} /><Info label="Vehicle no." value={selected.vehicle} /><Info label="Policy" value="Comprehensive" /></div><div className="mt-4"><Info label="Customer Description" value={selected.description} /></div></div><div><div className="flex items-center justify-between"><h3 className="font-medium text-white">AI triage report</h3><div className="flex items-center gap-2"><button onClick={downloadPDF} className="flex items-center gap-1 text-[11px] text-cyan hover:text-white px-2 py-1 rounded border border-cyan/30 transition-colors"><Download size={12}/> PDF Audit</button><span className={`risk-pill ${selected.risk > 75 ? 'risk-high' : selected.risk > 40 ? 'risk-medium' : 'risk-low'}`}><Gauge size={13} /> {selected.risk}% risk</span></div></div><div className="mt-4 rounded-2xl border border-white/8 bg-white/[0.025] p-5"><p className="text-sm leading-6 text-slate-300">{selected.reasoning}</p><div className="mt-5 grid grid-cols-2 gap-3"><div className="report-stat"><span>Visual match</span><strong>{selected.risk > 75 ? 'Low' : 'High'}</strong></div><div className="report-stat"><span>Rec. Payout</span><strong className="text-emerald">₹{selected.recommendedPayout?.toLocaleString() || 5000}</strong></div></div></div><div className="mt-5 flex flex-col gap-3 sm:flex-row">{selected.status === 'Pending Review' || selected.status === 'Flagged' ? <><button className="approve-button flex-1" onClick={() => updateStatus('Approved')}><BadgeCheck size={16} /> Approve ₹{selected.recommendedPayout?.toLocaleString() || 5000}</button><button className="reject-button flex-1" onClick={() => updateStatus('Flagged')}><AlertTriangle size={16} /> Reject & flag</button></> : <div className="rounded border border-emerald/20 bg-emerald/10 p-3 w-full flex items-center justify-center gap-2 text-sm text-emerald"><BadgeCheck size={16} /> Payout Initiated via Razorpay <span className={`ml-2 text-[10px] px-2 py-0.5 rounded-full ${selected.payoutStatus === 'Processed' ? 'bg-emerald/20 text-emerald' : 'bg-amber/20 text-amber'}`}>{selected.payoutStatus || 'Processing'}</span></div>}</div></div></div></GlassCard>
           ) : null}
           </div>
         </>
