@@ -34,7 +34,8 @@ import {
 
 type Role = 'login' | 'customer' | 'agent'
 type AgentTab = 'overview' | 'investigations' | 'analytics' | 'payouts'
-type ClaimStatus = 'Approved' | 'Pending Review' | 'Flagged' | 'Inspection Required' | 'billing'
+type CustomerTab = 'overview' | 'file' | 'history' | 'billing'
+type ClaimStatus = 'Approved' | 'Pending Review' | 'Flagged' | 'Inspection Required'
 
 type Claim = {
   id: string
