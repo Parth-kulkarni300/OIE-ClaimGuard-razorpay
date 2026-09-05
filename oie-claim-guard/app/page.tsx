@@ -34,7 +34,7 @@ import {
 type Role = 'login' | 'customer' | 'agent'
 type ClaimStatus = 'Pending Review' | 'Approved' | 'Flagged'
 type AgentTab = 'overview' | 'investigations' | 'analytics' | 'payouts'
-type CustomerTab = 'file' | 'history' | 'billing'
+type CustomerTab = 'overview' | 'file' | 'history' | 'billing'
 
 type Claim = {
   id: string
@@ -124,7 +124,7 @@ function TopBar({ role, onBack, name = "Alex Kumar", initials = "AK" }: { role: 
 }
 
 function Customer({ onBack }: { onBack: () => void }) {
-  const [tab, setTab] = useState<CustomerTab>('file')
+  const [tab, setTab] = useState<CustomerTab>('overview')
   const [sidebar, setSidebar] = useState(false)
   const [stage, setStage] = useState<'form' | 'loading' | 'success'>('form')
   const [dragging, setDragging] = useState(false)
@@ -144,7 +144,7 @@ function Customer({ onBack }: { onBack: () => void }) {
   }
 
   useEffect(() => {
-    if (tab === 'history') fetchClaims()
+    if (tab === 'history' || tab === 'overview') fetchClaims()
   }, [tab])
 
   useEffect(() => {
@@ -265,6 +265,7 @@ function Customer({ onBack }: { onBack: () => void }) {
           <button className="icon-button lg:hidden" onClick={() => setSidebar(false)}><X size={16} /></button>
         </div>
         <nav className="space-y-1">
+          <div className={tab === 'overview' ? 'nav-active' : 'nav-item'} onClick={() => setTab('overview')}><LayoutDashboard size={16} /> Dashboard</div>
           <div className={tab === 'file' ? 'nav-active' : 'nav-item'} onClick={() => setTab('file')}><FileCheck2 size={16} /> File a Claim</div>
           <div className={tab === 'history' ? 'nav-active' : 'nav-item'} onClick={() => setTab('history')}><History size={16} /> My Claims</div>
           <div className={tab === 'billing' ? 'nav-active' : 'nav-item'} onClick={() => setTab('billing')}><CreditCard size={16} /> Billing & Premiums</div>
@@ -283,7 +284,45 @@ function Customer({ onBack }: { onBack: () => void }) {
         </div>
 
         <div className="p-5 lg:p-8">
-          {tab === 'billing' ? (
+          {tab === 'overview' ? (
+            <div className="space-y-6">
+              <h2 className="text-2xl font-semibold tracking-tight text-white">Welcome back</h2>
+              <div className="grid gap-4 sm:grid-cols-3">
+                 <GlassCard className="p-5">
+                   <h3 className="text-sm font-medium text-slate-400">Active Policy</h3>
+                   <p className="mt-2 text-xl font-semibold text-white">Comprehensive Auto</p>
+                   <p className="mt-1 text-xs text-emerald flex items-center gap-1"><ShieldCheck size={12}/> Valid till Dec 2027</p>
+                 </GlassCard>
+                 <GlassCard className="p-5">
+                   <h3 className="text-sm font-medium text-slate-400">Insured Vehicle</h3>
+                   <p className="mt-2 text-xl font-semibold text-white">MH 12 AB 4821</p>
+                   <p className="mt-1 text-xs text-slate-500">2023 Tesla Model 3</p>
+                 </GlassCard>
+                 <GlassCard className="p-5">
+                   <h3 className="text-sm font-medium text-slate-400">Total Claims</h3>
+                   <p className="mt-2 text-xl font-semibold text-white">{claims.length}</p>
+                   <p className="mt-1 text-xs text-slate-500">Filed this year</p>
+                 </GlassCard>
+              </div>
+              <h3 className="text-lg font-medium text-white mt-8 mb-4">Quick Actions</h3>
+              <div className="grid gap-4 sm:grid-cols-2">
+                 <button onClick={() => setTab('file')} className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 p-5 hover:bg-white/10 transition-colors text-left">
+                   <div>
+                     <p className="font-medium text-white flex items-center gap-2"><FileCheck2 size={16} className="text-cyan"/> File a new claim</p>
+                     <p className="mt-1 text-xs text-slate-400">Report an accident or damage instantly</p>
+                   </div>
+                   <ArrowRight size={16} className="text-slate-500" />
+                 </button>
+                 <button onClick={() => setTab('billing')} className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 p-5 hover:bg-white/10 transition-colors text-left">
+                   <div>
+                     <p className="font-medium text-white flex items-center gap-2"><CreditCard size={16} className="text-cyan"/> Pay Premium</p>
+                     <p className="mt-1 text-xs text-slate-400">Sept 2026 premium is due in 5 days</p>
+                   </div>
+                   <ArrowRight size={16} className="text-slate-500" />
+                 </button>
+              </div>
+            </div>
+          ) : tab === 'billing' ? (
             <div className="max-w-xl mx-auto mt-10">
               <GlassCard className="p-8 sm:p-10 text-center">
                 <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-cyan/10 text-cyan mb-6"><CreditCard size={28} /></div>
@@ -312,6 +351,33 @@ function Customer({ onBack }: { onBack: () => void }) {
                 <div className="mt-6 flex items-center justify-center gap-2 text-xs text-slate-500">
                   <ShieldCheck size={14} /> Secured by Razorpay Checkout
                 </div>
+
+                <div className="mt-12 border-t border-white/10 pt-8 text-left">
+                  <h3 className="text-lg font-medium text-white mb-4">Payment History</h3>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between p-3 rounded-lg border border-white/5 bg-white/[0.02]">
+                      <div>
+                        <p className="text-sm font-medium text-white">August 2026 Premium</p>
+                        <p className="text-xs text-slate-500 mt-0.5">Paid on Aug 1st via Razorpay</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-medium text-white">₹1,500</p>
+                        <p className="text-xs text-emerald flex items-center justify-end gap-1 mt-0.5"><Check size={12}/> Successful</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between p-3 rounded-lg border border-white/5 bg-white/[0.02]">
+                      <div>
+                        <p className="text-sm font-medium text-white">July 2026 Premium</p>
+                        <p className="text-xs text-slate-500 mt-0.5">Paid on Jul 2nd via Razorpay</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-medium text-white">₹1,500</p>
+                        <p className="text-xs text-emerald flex items-center justify-end gap-1 mt-0.5"><Check size={12}/> Successful</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
               </GlassCard>
             </div>
           ) : tab === 'history' ? (
