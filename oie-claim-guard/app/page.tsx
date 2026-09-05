@@ -230,32 +230,43 @@ function Customer({ onBack }: { onBack: () => void }) {
         return;
       }
       
-      const options = {
-        key: "rzp_test_TXDYq2F9sQqsxe",
-        amount: "150000",
-        currency: "INR",
-        name: "OIE-ClaimGuard",
-        description: "Monthly Insurance Premium",
-        order_id: data.order_id,
-        handler: function (response: any) {
-          setIsPremiumPaid(true);
-        },
-        prefill: {
-          name: "Ananya Rao",
-          email: "customer@demo.com",
-          contact: "9999999999"
-        },
-        theme: {
-          color: "#06b6d4" // cyan
-        }
-      };
-      
-      const rzp1 = new (window as any).Razorpay(options);
-      rzp1.open();
-    } catch (e) {
-      console.error(e);
-      alert("Failed to initialize Razorpay checkout");
-    }
+        const options = {
+          key: "rzp_test_TXDYq2F9sQqsxe",
+          amount: "150000",
+          currency: "INR",
+          name: "OIE-ClaimGuard",
+          description: "Monthly Insurance Premium",
+          order_id: data.order_id,
+          handler: function (response: any) {
+            setIsPremiumPaid(true);
+            document.body.style.overflow = 'auto';
+          },
+          prefill: {
+            name: "Ananya Rao",
+            email: "customer@demo.com",
+            contact: "9999999999"
+          },
+          theme: {
+            color: "#06b6d4" // cyan
+          },
+          modal: {
+            ondismiss: function() {
+              document.body.style.overflow = 'auto';
+            }
+          }
+        };
+        
+        const rzp1 = new (window as any).Razorpay(options);
+        rzp1.on('payment.failed', function (response: any){
+            alert("Payment failed: " + response.error.description);
+            document.body.style.overflow = 'auto';
+        });
+        rzp1.open();
+      } catch (e) {
+        console.error(e);
+        alert("Failed to initialize Razorpay checkout");
+        document.body.style.overflow = 'auto';
+      }
   }
 
   return <main className="min-h-screen">
@@ -544,14 +555,25 @@ function Agent({ onBack }: { onBack: () => void }) {
             });
             setClaims(claims.map((claim) => claim.id === selected.id ? { ...claim, status, payoutStatus: 'Processing' } : claim));
             alert("Payout manually approved and disbursed via Razorpay!");
+            document.body.style.overflow = 'auto';
           },
-          theme: { color: "#00d5dc" }
+          theme: { color: "#00d5dc" },
+          modal: {
+            ondismiss: function() {
+              document.body.style.overflow = 'auto';
+            }
+          }
         };
         const rzp1 = new (window as any).Razorpay(options);
+        rzp1.on('payment.failed', function (response: any){
+            alert("Payment failed: " + response.error.description);
+            document.body.style.overflow = 'auto';
+        });
         rzp1.open();
       } catch (e) {
         console.error(e);
         alert("Failed to initialize Razorpay checkout");
+        document.body.style.overflow = 'auto';
       }
     } else if (status === 'Inspection Required') {
       try {
