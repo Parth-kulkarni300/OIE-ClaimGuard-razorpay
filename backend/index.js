@@ -60,7 +60,12 @@ async function analyzeClaim(claimText, imagePath) {
         A customer has submitted an auto insurance claim with the following description: "${claimText}"
         Analyze the provided image of the car damage. 
         If the image appears to be fake, AI-generated, or completely unrelated to a vehicle, set decision to "FLAGGED".
-        Otherwise, if the damage is real, set decision to "REAL" and estimate a recommended payout amount in INR based on the visual severity of the damage (e.g., minor scratch = 5000, severe damage = 50000). If the decision is FLAGGED, set the recommended payout to 0.`;
+        Otherwise, if the damage is real, set decision to "REAL".
+        IMPORTANT: Classify the damage severity into exactly one of three tiers: "MINOR", "MEDIUM", or "SEVERE". 
+        - MINOR: Small scratches, minor dents.
+        - MEDIUM: Noticeable body damage, broken lights, but vehicle seems drivable.
+        - SEVERE: Major structural damage, crushed parts, deployed airbags, or totaled vehicle.
+        Estimate a highly realistic and variable recommended payout amount in INR based on the exact damage and severity (e.g., anywhere between 2000 for a tiny scratch to 200000 for severe damage). Do NOT just output 5000. Be precise. If the decision is FLAGGED, set the recommended payout to 0.`;
 
         const response = await ai.models.generateContent({
             model: 'gemini-2.5-flash',
@@ -75,10 +80,11 @@ async function analyzeClaim(claimText, imagePath) {
                     properties: {
                         riskScore: { type: Type.INTEGER, description: "Risk score from 0 to 100 (0=Safest, 100=Highest Fraud Risk)" },
                         decision: { type: Type.STRING, enum: ["REAL", "FLAGGED"], description: "The final routing decision" },
-                        recommendedPayout: { type: Type.INTEGER, description: "Recommended payout amount in INR" },
+                        severity: { type: Type.STRING, enum: ["MINOR", "MEDIUM", "SEVERE"], description: "Damage severity classification" },
+                        recommendedPayout: { type: Type.INTEGER, description: "Realistic recommended payout amount in INR" },
                         reasoning: { type: Type.STRING, description: "Detailed explanation of why this decision was made and how the payout was calculated" }
                     },
-                    required: ["riskScore", "decision", "recommendedPayout", "reasoning"]
+                    required: ["riskScore", "decision", "severity", "recommendedPayout", "reasoning"]
                 }
             }
         });
@@ -90,6 +96,7 @@ async function analyzeClaim(claimText, imagePath) {
         return {
             riskScore: 99,
             decision: 'FLAGGED',
+            severity: 'SEVERE',
             recommendedPayout: 0,
             reasoning: 'AI Error occurred. Manual review required.'
         };
@@ -174,11 +181,17 @@ app.post('/api/claims', upload.single('evidence'), async (req, res) => {
             risk: analysis.riskScore,
             reasoning: analysis.reasoning,
             rawDecision: analysis.decision,
+            severity: analysis.severity,
             recommendedPayout: analysis.recommendedPayout,
-            status: analysis.decision === 'FLAGGED' ? 'Flagged' : 'Pending Review',
+            status: analysis.decision === 'FLAGGED' ? 'Flagged' : (analysis.severity === 'MINOR' ? 'Approved' : 'Pending Review'),
             submittedAt: new Date().toISOString(), // Keep raw date for mapping to 'submitted' later
-            payoutStatus: 'Not Initiated'
+            payoutStatus: analysis.severity === 'MINOR' && analysis.decision === 'REAL' ? 'Processing' : 'Not Initiated'
         };
+
+        if (newClaim.status === 'Approved') {
+            // Auto-trigger RazorpayX payout for MINOR claims in background
+            initiateRazorpayPayout(newClaim.recommendedPayout, accountNumber).catch(err => console.error("Auto payout failed:", err));
+        }
 
         // Prepend to show newest first
         claimsDB.unshift(newClaim);
@@ -208,6 +221,7 @@ app.get('/api/claims', (req, res) => {
         description: c.description,
         image: c.image,
         reasoning: c.reasoning,
+        severity: c.severity,
         recommendedPayout: c.recommendedPayout,
         payoutStatus: c.payoutStatus
     }));
