@@ -270,6 +270,27 @@ app.post('/api/webhooks/razorpay', (req, res) => {
     }
 });
 
+// POST: Create Razorpay Order for Checkout
+app.post('/api/create-order', async (req, res) => {
+    try {
+        const { amount } = req.body;
+        if (!rzp) {
+            return res.status(500).json({ error: 'Razorpay SDK not configured with keys in .env' });
+        }
+        
+        const order = await rzp.orders.create({
+            amount: amount * 100, // paise
+            currency: "INR",
+            receipt: "rcpt_" + Math.random().toString(36).substring(7)
+        });
+        
+        res.json({ order_id: order.id });
+    } catch (error) {
+        console.error("Error creating order:", error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
 app.listen(port, () => {
     console.log(`Backend server running at http://localhost:${port}`);
 });

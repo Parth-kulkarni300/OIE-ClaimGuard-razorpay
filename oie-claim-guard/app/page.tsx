@@ -27,13 +27,14 @@ import {
   History,
   Mic,
   Download,
-  Zap
+  Zap,
+  CreditCard
 } from 'lucide-react'
 
 type Role = 'login' | 'customer' | 'agent'
 type ClaimStatus = 'Pending Review' | 'Approved' | 'Flagged'
 type AgentTab = 'overview' | 'investigations' | 'analytics' | 'payouts'
-type CustomerTab = 'file' | 'history'
+type CustomerTab = 'file' | 'history' | 'billing'
 
 type Claim = {
   id: string
@@ -124,13 +125,14 @@ function TopBar({ role, onBack, name = "Alex Kumar", initials = "AK" }: { role: 
 
 function Customer({ onBack }: { onBack: () => void }) {
   const [tab, setTab] = useState<CustomerTab>('file')
+  const [sidebar, setSidebar] = useState(false)
   const [stage, setStage] = useState<'form' | 'loading' | 'success'>('form')
   const [dragging, setDragging] = useState(false)
   const [listening, setListening] = useState(false)
+  const [isPremiumPaid, setIsPremiumPaid] = useState(false)
   const [file, setFile] = useState<File | null>(null)
   const [values, setValues] = useState({ name: 'Ananya Rao', claim: 'CLM-' + Math.floor(1000 + Math.random() * 9000), vehicle: 'MH 12 AB 4821', description: '' })
   
-  // History state
   const [claims, setClaims] = useState<Claim[]>([])
   const [loadingHistory, setLoadingHistory] = useState(true)
 
@@ -144,6 +146,14 @@ function Customer({ onBack }: { onBack: () => void }) {
   useEffect(() => {
     if (tab === 'history') fetchClaims()
   }, [tab])
+
+  useEffect(() => {
+    // Load Razorpay Checkout Script
+    const script = document.createElement("script");
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.async = true;
+    document.body.appendChild(script);
+  }, []);
 
   const setField = (key: keyof typeof values) => (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setValues({ ...values, [key]: event.target.value })
   const onFile = (files: FileList | null) => { if (files?.[0]) setFile(files[0]) }
@@ -204,55 +214,148 @@ function Customer({ onBack }: { onBack: () => void }) {
     }
   }
 
+  const payPremium = async () => {
+    try {
+      const res = await fetch('http://localhost:3001/api/create-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount: 1500 })
+      });
+      const data = await res.json();
+      
+      if (!data.order_id) {
+        alert("Could not generate Razorpay order. Check backend .env");
+        return;
+      }
+      
+      const options = {
+        key: "rzp_test_TXDYq2F9sQqsxe",
+        amount: "150000",
+        currency: "INR",
+        name: "OIE-ClaimGuard",
+        description: "Monthly Insurance Premium",
+        order_id: data.order_id,
+        handler: function (response: any) {
+          setIsPremiumPaid(true);
+        },
+        prefill: {
+          name: "Ananya Rao",
+          email: "customer@demo.com",
+          contact: "9999999999"
+        },
+        theme: {
+          color: "#06b6d4" // cyan
+        }
+      };
+      
+      const rzp1 = new (window as any).Razorpay(options);
+      rzp1.open();
+    } catch (e) {
+      console.error(e);
+      alert("Failed to initialize Razorpay checkout");
+    }
+  }
+
   return <main className="min-h-screen">
     <TopBar role="Customer portal" onBack={onBack} name="Ananya Rao" initials="AR" />
-    <div className="mx-auto max-w-6xl px-5 py-8 lg:px-8 lg:py-12">
-      
-      <div className="flex gap-4 mb-8 border-b border-white/8 pb-4">
-        <button onClick={() => setTab('file')} className={`flex items-center gap-2 pb-4 mb-[-17px] border-b-2 px-2 transition-colors ${tab === 'file' ? 'border-cyan text-white' : 'border-transparent text-slate-500 hover:text-slate-300'}`}><FileCheck2 size={16}/> File a Claim</button>
-        <button onClick={() => setTab('history')} className={`flex items-center gap-2 pb-4 mb-[-17px] border-b-2 px-2 transition-colors ${tab === 'history' ? 'border-cyan text-white' : 'border-transparent text-slate-500 hover:text-slate-300'}`}><History size={16}/> My Claims</button>
-      </div>
-
-      {tab === 'history' ? (
-        <div className="space-y-6">
-          <div><h1 className="text-3xl font-semibold tracking-tight text-white">Claim History</h1><p className="mt-2 text-sm text-slate-400">Track the status and AI decisions for your submitted claims.</p></div>
-          {loadingHistory ? <p className="text-slate-500">Loading claims...</p> : claims.length === 0 ? <p className="text-slate-500">No claims submitted yet.</p> : (
-            <div className="grid gap-4">
-              {claims.map(c => (
-                <GlassCard key={c.id} className="p-6">
-                  <div className="flex justify-between items-start border-b border-white/8 pb-4 mb-4">
-                    <div>
-                      <h3 className="text-lg font-medium text-white">{c.claimId}</h3>
-                      <p className="text-xs text-slate-400 mt-1">Submitted {c.submitted}</p>
-                    </div>
-                    <Status status={c.status} />
-                  </div>
-                  <div className="grid sm:grid-cols-2 gap-6">
-                    <div>
-                      <p className="text-[10px] uppercase tracking-wider text-slate-500 mb-2">Accident Description</p>
-                      <p className="text-sm text-slate-300">{c.description}</p>
-                    </div>
-                    <div className="rounded-lg border border-white/8 bg-white/5 p-4">
-                      <p className="text-[10px] uppercase tracking-wider text-slate-500 mb-2">Decision Context</p>
-                      <p className="text-xs text-slate-300 leading-relaxed mb-4">{c.reasoning}</p>
-                      {c.status === 'Approved' && (
-                        <div className="flex items-center justify-between text-sm">
-                          <div className="flex items-center gap-2 text-emerald font-medium">
-                            <BadgeCheck size={16} /> INR 5,000 Payout
-                          </div>
-                          <div className={`px-2 py-1 rounded text-xs ${c.payoutStatus === 'Processed' ? 'bg-emerald/20 text-emerald' : c.payoutStatus === 'Processing' ? 'bg-amber/20 text-amber' : 'bg-slate-700 text-slate-400'}`}>
-                            {c.payoutStatus || 'Pending'}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </GlassCard>
-              ))}
-            </div>
-          )}
+    <div className="flex">
+      <aside className={`${sidebar ? 'flex' : 'hidden'} fixed inset-y-0 left-0 z-20 w-64 flex-col border-r border-white/8 bg-navy px-4 py-5 lg:static lg:flex lg:min-h-[calc(100vh-73px)]`}>
+        <div className="mb-8 flex items-center justify-between px-2">
+          <Logo compact />
+          <button className="icon-button lg:hidden" onClick={() => setSidebar(false)}><X size={16} /></button>
         </div>
-      ) : stage === 'loading' ? <div className="flex min-h-[65vh] items-center justify-center"><GlassCard className="w-full max-w-lg p-10 text-center"><div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-cyan/10 text-cyan"><Sparkles className="animate-pulse" size={28} /></div><h1 className="mt-7 text-2xl font-semibold text-white">Agentic AI is analyzing your claim...</h1><p className="mt-3 text-sm leading-6 text-slate-400">Reviewing vehicle imagery, policy coverage, and incident details via Gemini API.</p><div className="mt-8 h-1.5 overflow-hidden rounded-full bg-white/8"><div className="analysis-bar h-full rounded-full bg-cyan" /></div></GlassCard></div> : stage === 'success' ? <div className="flex min-h-[65vh] items-center justify-center"><GlassCard className="w-full max-w-xl p-8 text-center sm:p-12"><div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-emerald/12 text-emerald"><Check size={34} /></div><div className="eyebrow mx-auto mt-7 w-fit text-emerald"><BadgeCheck size={14} /> Safe claim verified</div><h1 className="mt-5 text-3xl font-semibold tracking-tight text-white">Claim auto-approved.</h1><p className="mx-auto mt-3 max-w-md text-sm leading-6 text-slate-400">Your claim has been approved and an <strong className="font-medium text-white">INR 5,000 payout</strong> has been initiated via Razorpay.</p><div className="mt-8 rounded-2xl border border-emerald/20 bg-emerald/8 p-4 text-left"><div className="flex items-center justify-between text-sm"><span className="text-slate-400">Claim reference</span><span className="font-mono text-emerald">{values.claim}</span></div><div className="mt-3 flex items-center justify-between text-sm"><span className="text-slate-400">Expected credit</span><span className="text-white">Within 2 hours</span></div></div><button className="secondary-button mt-8 w-full" onClick={() => {setStage('form'); setValues({ ...values, claim: 'CLM-' + Math.floor(1000 + Math.random() * 9000), description: '' }); setFile(null);}}>File another claim</button></GlassCard></div> : <><div className="mb-9 flex flex-col justify-between gap-4 sm:flex-row sm:items-end"><div><div className="eyebrow"><FileCheck2 size={14} /> Customer portal</div><h1 className="mt-3 text-3xl font-semibold tracking-tight text-white sm:text-4xl">File a new claim</h1><p className="mt-2 text-sm text-slate-400">Tell us what happened. Our AI will handle the first review.</p></div><div className="flex items-center gap-2 text-xs text-slate-500"><span className="h-2 w-2 rounded-full bg-emerald" /> Secure and encrypted</div></div><div className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]"><GlassCard className="p-6 sm:p-8"><div className="mb-7 flex items-center justify-between"><div><h2 className="font-medium text-white">Incident details</h2><p className="mt-1 text-xs text-slate-500">All fields are required for accurate triage.</p></div><span className="step-pill">1 of 2</span></div><div className="grid gap-5 sm:grid-cols-2"><label className="field-label">Full name<input className="field-input" placeholder="e.g. Ananya Rao" value={values.name} onChange={setField('name')} /></label><label className="field-label">Policy / claim ID<input className="field-input" placeholder="e.g. POL-92841" value={values.claim} onChange={setField('claim')} /></label><label className="field-label sm:col-span-2">Vehicle registration number<input className="field-input" placeholder="e.g. MH 12 AB 4821" value={values.vehicle} onChange={setField('vehicle')} /></label><div className="sm:col-span-2"><label className="field-label flex items-center justify-between">Accident description <button onClick={toggleListening} className={`flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium transition-colors ${listening ? 'bg-coral text-white animate-pulse' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}><Mic size={12}/> {listening ? 'Listening...' : 'Speak'}</button></label><textarea className="field-input min-h-32 resize-none mt-2" placeholder='Describe when and how the damage occurred... Try "minor scratch" for auto-pay or "completely totaled" for investigation.' value={values.description} onChange={setField('description')} /></div></div></GlassCard><GlassCard className="flex flex-col p-6 sm:p-8"><div className="mb-7"><h2 className="font-medium text-white">Damage photos</h2><p className="mt-1 text-xs text-slate-500">Upload clear photos of the affected area.</p></div><label className={`drop-zone flex flex-1 cursor-pointer flex-col items-center justify-center text-center ${dragging ? 'drop-zone-active' : ''}`} onDragOver={(e: DragEvent) => { e.preventDefault(); setDragging(true) }} onDragLeave={() => setDragging(false)} onDrop={(e: DragEvent) => { e.preventDefault(); setDragging(false); onFile(e.dataTransfer.files) }}><input type="file" accept="image/*" className="sr-only" onChange={(e) => onFile(e.target.files)} />{file ? <><FileImage size={30} className="text-cyan" /><p className="mt-4 max-w-full truncate px-4 text-sm text-white">{file.name}</p><p className="mt-1 text-xs text-emerald">Photo ready to analyze</p></> : <><div className="flex h-12 w-12 items-center justify-center rounded-xl bg-cyan/10 text-cyan"><UploadCloud size={22} /></div><p className="mt-4 text-sm text-white">Drop photos here or <span className="text-cyan">browse</span></p><p className="mt-2 text-xs text-slate-500">PNG, JPG up to 10MB</p></>}</label><button className="primary-button mt-6 w-full" onClick={submit}><Sparkles size={17} /> Submit for AI review <ArrowRight size={16} className="ml-auto" /></button></GlassCard></div></>}
+        <nav className="space-y-1">
+          <div className={tab === 'file' ? 'nav-active' : 'nav-item'} onClick={() => setTab('file')}><FileCheck2 size={16} /> File a Claim</div>
+          <div className={tab === 'history' ? 'nav-active' : 'nav-item'} onClick={() => setTab('history')}><History size={16} /> My Claims</div>
+          <div className={tab === 'billing' ? 'nav-active' : 'nav-item'} onClick={() => setTab('billing')}><CreditCard size={16} /> Billing & Premiums</div>
+        </nav>
+        
+        <div className="mt-auto rounded-2xl border border-white/8 bg-white/5 p-4 text-xs text-slate-400">
+          <p>Policy #POL-92841</p>
+          <p className="mt-1 font-medium text-white">Comprehensive Coverage</p>
+        </div>
+        <button className="nav-item mt-4 w-full" onClick={onBack}><LogOut size={16} /> Sign out</button>
+      </aside>
+      
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center justify-between border-b border-white/8 px-5 py-4 lg:px-8">
+          <div><div className="flex items-center gap-3"><button className="icon-button lg:hidden" onClick={() => setSidebar(true)}><Menu size={17} /></button><div><h1 className="text-xl font-semibold tracking-tight text-white sm:text-2xl">Good morning, Ananya</h1></div></div></div>
+        </div>
+
+        <div className="p-5 lg:p-8">
+          {tab === 'billing' ? (
+            <div className="max-w-xl mx-auto mt-10">
+              <GlassCard className="p-8 sm:p-10 text-center">
+                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-cyan/10 text-cyan mb-6"><CreditCard size={28} /></div>
+                <h2 className="text-2xl font-semibold text-white">September 2026 Premium</h2>
+                <div className="mt-4 space-y-1">
+                  <p className="text-slate-400">Vehicle: <strong className="text-white">MH 12 AB 4821</strong></p>
+                  <p className="text-slate-400">Plan: <strong className="text-white">Comprehensive Auto Coverage</strong></p>
+                  <p className="text-slate-400">Policy: <strong className="text-white">POL-92841</strong></p>
+                </div>
+                
+                <div className="my-8">
+                  <span className="text-5xl font-semibold text-white">₹1,500</span>
+                  <span className="text-slate-500 ml-2">/ month</span>
+                </div>
+                
+                {isPremiumPaid ? (
+                  <div className="rounded-xl border border-emerald/20 bg-emerald/10 p-5 flex items-center justify-center gap-3 text-emerald font-medium">
+                    <BadgeCheck size={24} /> Premium Paid (Thank You!)
+                  </div>
+                ) : (
+                  <button className="primary-button w-full text-lg py-4" onClick={payPremium}>
+                    Pay with Razorpay <ArrowRight size={20} className="ml-auto" />
+                  </button>
+                )}
+                
+                <div className="mt-6 flex items-center justify-center gap-2 text-xs text-slate-500">
+                  <ShieldCheck size={14} /> Secured by Razorpay Checkout
+                </div>
+              </GlassCard>
+            </div>
+          ) : tab === 'history' ? (
+            <div className="space-y-6">
+              <div><h2 className="text-2xl font-semibold tracking-tight text-white">Claim History</h2><p className="mt-1 text-sm text-slate-400">Track the status and AI decisions for your submitted claims.</p></div>
+              {loadingHistory ? <p className="text-slate-500">Loading claims...</p> : claims.length === 0 ? <p className="text-slate-500">No claims submitted yet.</p> : (
+                <div className="grid gap-4">
+                  {claims.map(c => (
+                    <GlassCard key={c.id} className="p-6">
+                      <div className="flex justify-between items-start border-b border-white/8 pb-4 mb-4">
+                        <div>
+                          <h3 className="text-lg font-medium text-white">{c.claimId}</h3>
+                          <p className="text-xs text-slate-400 mt-1">Submitted {c.submitted}</p>
+                        </div>
+                        <Status status={c.status} />
+                      </div>
+                      <div className="grid sm:grid-cols-2 gap-6">
+                        <div>
+                          <p className="text-[10px] uppercase tracking-wider text-slate-500 mb-2">Accident Description</p>
+                          <p className="text-sm text-slate-300">{c.description}</p>
+                        </div>
+                        <div className="rounded-lg border border-white/8 bg-white/5 p-4">
+                          <p className="text-[10px] uppercase tracking-wider text-slate-500 mb-2">Decision Context</p>
+                          <p className="text-xs text-slate-300 leading-relaxed mb-4">{c.reasoning}</p>
+                          {c.status === 'Approved' && (
+                            <div className="flex items-center justify-between text-sm">
+                              <div className="flex items-center gap-2 text-emerald font-medium">
+                                <BadgeCheck size={16} /> INR 5,000 Payout
+                              </div>
+                              <div className={`px-2 py-1 rounded text-xs ${c.payoutStatus === 'Processed' ? 'bg-emerald/20 text-emerald' : c.payoutStatus === 'Processing' ? 'bg-amber/20 text-amber' : 'bg-slate-700 text-slate-400'}`}>
+                                {c.payoutStatus || 'Pending'}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </GlassCard>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : stage === 'loading' ? <div className="flex min-h-[65vh] items-center justify-center"><GlassCard className="w-full max-w-lg p-10 text-center"><div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-cyan/10 text-cyan"><Sparkles className="animate-pulse" size={28} /></div><h1 className="mt-7 text-2xl font-semibold text-white">Agentic AI is analyzing your claim...</h1><p className="mt-3 text-sm leading-6 text-slate-400">Reviewing vehicle imagery, policy coverage, and incident details via Gemini API.</p><div className="mt-8 h-1.5 overflow-hidden rounded-full bg-white/8"><div className="analysis-bar h-full rounded-full bg-cyan" /></div></GlassCard></div> : stage === 'success' ? <div className="flex min-h-[65vh] items-center justify-center"><GlassCard className="w-full max-w-xl p-8 text-center sm:p-12"><div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-emerald/12 text-emerald"><Check size={34} /></div><div className="eyebrow mx-auto mt-7 w-fit text-emerald"><BadgeCheck size={14} /> Safe claim verified</div><h1 className="mt-5 text-3xl font-semibold tracking-tight text-white">Claim auto-approved.</h1><p className="mx-auto mt-3 max-w-md text-sm leading-6 text-slate-400">Your claim has been approved and an <strong className="font-medium text-white">INR 5,000 payout</strong> has been initiated via Razorpay.</p><div className="mt-8 rounded-2xl border border-emerald/20 bg-emerald/8 p-4 text-left"><div className="flex items-center justify-between text-sm"><span className="text-slate-400">Claim reference</span><span className="font-mono text-emerald">{values.claim}</span></div><div className="mt-3 flex items-center justify-between text-sm"><span className="text-slate-400">Expected credit</span><span className="text-white">Within 2 hours</span></div></div><button className="secondary-button mt-8 w-full" onClick={() => {setStage('form'); setValues({ ...values, claim: 'CLM-' + Math.floor(1000 + Math.random() * 9000), description: '' }); setFile(null);}}>File another claim</button></GlassCard></div> : <><div className="mb-9 flex flex-col justify-between gap-4 sm:flex-row sm:items-end"><div><div className="eyebrow"><FileCheck2 size={14} /> Customer portal</div><h2 className="mt-3 text-2xl font-semibold tracking-tight text-white sm:text-3xl">File a new claim</h2><p className="mt-2 text-sm text-slate-400">Tell us what happened. Our AI will handle the first review.</p></div><div className="flex items-center gap-2 text-xs text-slate-500"><span className="h-2 w-2 rounded-full bg-emerald" /> Secure and encrypted</div></div><div className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]"><GlassCard className="p-6 sm:p-8"><div className="mb-7 flex items-center justify-between"><div><h2 className="font-medium text-white">Incident details</h2><p className="mt-1 text-xs text-slate-500">All fields are required for accurate triage.</p></div><span className="step-pill">1 of 2</span></div><div className="grid gap-5 sm:grid-cols-2"><label className="field-label">Full name<input className="field-input" placeholder="e.g. Ananya Rao" value={values.name} onChange={setField('name')} /></label><label className="field-label">Policy / claim ID<input className="field-input" placeholder="e.g. POL-92841" value={values.claim} onChange={setField('claim')} /></label><label className="field-label sm:col-span-2">Vehicle registration number<input className="field-input" placeholder="e.g. MH 12 AB 4821" value={values.vehicle} onChange={setField('vehicle')} /></label><div className="sm:col-span-2"><label className="field-label flex items-center justify-between">Accident description <button onClick={toggleListening} className={`flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium transition-colors ${listening ? 'bg-coral text-white animate-pulse' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}><Mic size={12}/> {listening ? 'Listening...' : 'Speak'}</button></label><textarea className="field-input min-h-32 resize-none mt-2" placeholder='Describe when and how the damage occurred... Try "minor scratch" for auto-pay or "completely totaled" for investigation.' value={values.description} onChange={setField('description')} /></div></div></GlassCard><GlassCard className="flex flex-col p-6 sm:p-8"><div className="mb-7"><h2 className="font-medium text-white">Damage photos</h2><p className="mt-1 text-xs text-slate-500">Upload clear photos of the affected area.</p></div><label className={`drop-zone flex flex-1 cursor-pointer flex-col items-center justify-center text-center ${dragging ? 'drop-zone-active' : ''}`} onDragOver={(e: DragEvent) => { e.preventDefault(); setDragging(true) }} onDragLeave={() => setDragging(false)} onDrop={(e: DragEvent) => { e.preventDefault(); setDragging(false); onFile(e.dataTransfer.files) }}><input type="file" accept="image/*" className="sr-only" onChange={(e) => onFile(e.target.files)} />{file ? <><FileImage size={30} className="text-cyan" /><p className="mt-4 max-w-full truncate px-4 text-sm text-white">{file.name}</p><p className="mt-1 text-xs text-emerald">Photo ready to analyze</p></> : <><div className="flex h-12 w-12 items-center justify-center rounded-xl bg-cyan/10 text-cyan"><UploadCloud size={22} /></div><p className="mt-4 text-sm text-white">Drop photos here or <span className="text-cyan">browse</span></p><p className="mt-2 text-xs text-slate-500">PNG, JPG up to 10MB</p></>}</label><button className="primary-button mt-6 w-full" onClick={submit}><Sparkles size={17} /> Submit for AI review <ArrowRight size={16} className="ml-auto" /></button></GlassCard></div></>}
+        </div>
+      </div>
     </div>
   </main>
 }
